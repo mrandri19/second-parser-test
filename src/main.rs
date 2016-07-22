@@ -3,18 +3,77 @@ extern crate regex;
 use regex::Regex;
 
 fn main() {
-    let mut lexer = Lexer::new("1+1+(1+1)");
+    let tokens = lexer("21+1+(1+1)");
+
+    let ast = parser(tokens.clone());
+
+    println!("{:?}", tokens);
+}
+
+struct AST {
+    digit: i32,
+    expr: Option<Vec<Expr>>
+}
+
+enum Either<L, R> {
+    Left(L),
+    Right(R)
+}
+
+struct Expr {
+    operator: Operators,
+    //TODO: read about Box
+    exprOrBG: Either<i32, Box<BracketGroup>>
+}
+
+struct BracketGroup {
+    digit: i32,
+    expr: Option<Vec<Expr>>
+}
+
+fn parser(input: Vec<Token>) -> Result<AST, &'static str> {
+    if let Token::Digit(digit) = input[0] {
+        if input[1] == Token::EOF {
+            return Ok(AST {
+                digit: digit,
+                expr: None
+            });
+        }
+
+        if let Token::Operator(op) = input[1] {
+            return Ok(AST {
+                // TODO: finish
+                digit: digit,
+                expr: Some(try!(expr(input[1..])))
+            });
+        } else {
+            return Err("Expected operator");
+        }
+    } else {
+        return Err("Expected digit");
+    }
+}
+
+fn expr(input: Vec<Token>) -> Result<Expr, &'static str> {
+    Ok(Expr {
+        operator: Operators::Minus,
+        exprOrBG: Either::Left(13)
+    })
+}
+
+
+fn lexer(input: &str) -> Vec<Token> {
+    let mut lexer = Lexer::new(input);
 
     let mut tokens = Vec::new();
     while let Some(tok) = lexer.next_token() {
         tokens.push(tok);
     }
     tokens.push(Token::EOF);
-
-    println!("{:?}", tokens);
+    tokens
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Operators {
     Plus,
     Minus,
@@ -22,7 +81,7 @@ enum Operators {
     Slash,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Token {
     Operator(Operators),
     Digit(i32),
@@ -98,4 +157,17 @@ impl<'a> Lexer<'a> {
         }
         None
     }
+}
+
+#[test]
+fn single_digit() {
+    assert_eq!(lexer("1"), vec![Token::Digit(1), Token::EOF]);
+}
+#[test]
+fn multi_digit_number() {
+    assert_eq!(lexer("12"), vec![Token::Digit(12), Token::EOF]);
+}
+#[test]
+fn simple_addition() {
+    assert_eq!(lexer("132+2"), vec![Token::Digit(132), Token::Operator(Operators::Plus), Token::Digit(2), Token::EOF]);
 }
